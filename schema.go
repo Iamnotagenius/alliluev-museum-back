@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/graphql-go/graphql"
 )
 
@@ -22,22 +24,22 @@ type (
 )
 
 var (
-	Data map[string]Exhibit = map[string]Exhibit{
+	Data = map[string]Exhibit{
 		"chairs": {
 			Slug:        "chairs",
 			Name:        "Венские стулья",
-			Description: "Стулья из венеции. Второй параграф",
+			Description: "Стулья из венеции.\n\nВторой параграф",
 			Pictures:    []string{"assets/pictures/chairs1.jpeg", "assets/pictures/chairs2.jpeg"},
 		},
 		"clock": {
 			Slug:        "clock",
 			Name:        "Часы",
-			Description: "Часы. Второй параграф",
+			Description: "Часы.\nВторой параграф",
 			Pictures:    []string{"assets/pictures/clock.jpeg"},
 		},
 	}
 
-	RoomData map[string]Room = map[string]Room{
+	RoomData = map[string]Room{
 		"hall": {
 			Name:        "Гостиная",
 			Description: "Описание гостиной",
@@ -51,19 +53,8 @@ var (
 			Exhibits:    []Exhibit{Data["clock"]},
 		},
 	}
-)
 
-func init_schema() (graphql.Schema, error) {
-	data := Data["chairs"]
-	data.Room = RoomData["hall"]
-	Data["chairs"] = data
-	data = Data["clock"]
-	data.Room = RoomData["kitchen"]
-	Data["clock"] = data
-
-	var roomType *graphql.Object
-
-	exhibitType := graphql.NewObject(graphql.ObjectConfig{
+	exhibitType = graphql.NewObject(graphql.ObjectConfig{
 		Name: "Exhibit",
 		Fields: graphql.Fields{
 			"slug": &graphql.Field{
@@ -85,10 +76,14 @@ func init_schema() (graphql.Schema, error) {
 				},
 			},
 			"description": &graphql.Field{
-				Type: graphql.String,
+				Type: graphql.NewList(graphql.NewNonNull(graphql.String)),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					if exhibit, ok := p.Source.(Exhibit); ok {
-						return exhibit.Description, nil
+						return strings.FieldsFunc(
+							exhibit.Description,
+							func(r rune) bool {
+								return r == '\n'
+							}), nil
 					}
 					return []interface{}{}, nil
 				},
@@ -100,15 +95,6 @@ func init_schema() (graphql.Schema, error) {
 						return exhibit.Pictures, nil
 					}
 					return []interface{}{}, nil
-				},
-			},
-			"room": &graphql.Field{
-				Type: roomType,
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					if exhibit, ok := p.Source.(Exhibit); ok {
-						return exhibit.Room, nil
-					}
-					return Room{}, nil
 				},
 			},
 		},
@@ -156,7 +142,7 @@ func init_schema() (graphql.Schema, error) {
 		},
 	})
 
-	rootType := graphql.NewObject(graphql.ObjectConfig{
+	rootType = graphql.NewObject(graphql.ObjectConfig{
 		Name:        "Query",
 		Description: "Get a singular item from a database",
 		Fields: graphql.Fields{
@@ -192,6 +178,27 @@ func init_schema() (graphql.Schema, error) {
 			},
 		},
 	})
+)
+
+func init_schema() (graphql.Schema, error) {
+	data := Data["chairs"]
+	data.Room = RoomData["hall"]
+	Data["chairs"] = data
+	data = Data["clock"]
+	data.Room = RoomData["kitchen"]
+	Data["clock"] = data
+
+	exhibitType.AddFieldConfig(
+		"room", &graphql.Field{
+			Type: roomType,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				if exhibit, ok := p.Source.(Exhibit); ok {
+					return exhibit.Room, nil
+				}
+				return Room{}, nil
+			},
+		},
+	)
 
 	return graphql.NewSchema(graphql.SchemaConfig{
 		Query: rootType,

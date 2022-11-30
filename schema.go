@@ -8,64 +8,24 @@ import (
 
 type (
 	Exhibit struct {
-		Slug        string
+		ID          int
 		Name        string
 		Description string
 		Pictures    []string
-		Room        Room
+		Room        int
 	}
 
 	Room struct {
-		Name        string
-		Description string
-		Pictures    []string
-		Exhibits    []Exhibit
+		ID       int
+		Name     string
+		Pictures []string
 	}
 )
 
 var (
-	Data = map[string]Exhibit{
-		"chairs": {
-			Slug:        "chairs",
-			Name:        "Венские стулья",
-			Description: "Стулья из венеции.\n\nВторой параграф",
-			Pictures:    []string{"assets/pictures/chairs1.jpeg", "assets/pictures/chairs2.jpeg"},
-		},
-		"clock": {
-			Slug:        "clock",
-			Name:        "Часы",
-			Description: "Часы.\nВторой параграф",
-			Pictures:    []string{"assets/pictures/clock.jpeg"},
-		},
-	}
-
-	RoomData = map[string]Room{
-		"hall": {
-			Name:        "Гостиная",
-			Description: "Описание гостиной",
-			Pictures:    []string{"assets/pictures/chairs1.jpeg", "assets/pictures/chairs2.jpeg"},
-			Exhibits:    []Exhibit{Data["chairs"]},
-		},
-		"kitchen": {
-			Name:        "Кухня",
-			Description: "Описание",
-			Pictures:    []string{"assets/pictures/clock.jpeg"},
-			Exhibits:    []Exhibit{Data["clock"]},
-		},
-	}
-
 	exhibitType = graphql.NewObject(graphql.ObjectConfig{
 		Name: "Exhibit",
 		Fields: graphql.Fields{
-			"slug": &graphql.Field{
-				Type: graphql.NewNonNull(graphql.String),
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					if exhibit, ok := p.Source.(Exhibit); ok {
-						return exhibit.Slug, nil
-					}
-					return nil, nil
-				},
-			},
 			"name": &graphql.Field{
 				Type: graphql.String,
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
@@ -112,15 +72,6 @@ var (
 					return nil, nil
 				},
 			},
-			"description": &graphql.Field{
-				Type: graphql.NewList(graphql.String),
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					if room, ok := p.Source.(Room); ok {
-						return room.Description, nil
-					}
-					return []interface{}{}, nil
-				},
-			},
 			"pictures": &graphql.Field{
 				Type: graphql.NewList(graphql.String),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
@@ -133,8 +84,9 @@ var (
 			"exhibits": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(exhibitType))),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					db, _ := p.Context.Value("db").(MuseumDB)
 					if room, ok := p.Source.(Room); ok {
-						return room.Exhibits, nil
+						return db.ExhibitsByRoomID(room.ID)
 					}
 					return []interface{}{}, nil
 				},
@@ -149,31 +101,43 @@ var (
 			"exhibit": &graphql.Field{
 				Type: exhibitType,
 				Args: graphql.FieldConfigArgument{
-					"slug": &graphql.ArgumentConfig{
-						Description: "Returns an exhibit based on slug",
-						Type:        graphql.NewNonNull(graphql.String),
+					"id": &graphql.ArgumentConfig{
+						Description: "Retreive an exhibit from database",
+						Type:        graphql.NewNonNull(graphql.Int),
 					},
 				},
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					if exhibit, ok := Data[p.Args["slug"].(string)]; ok {
-						return exhibit, nil
-					}
-					return Exhibit{}, nil
+					db, _ := p.Context.Value("db").(MuseumDB)
+					return db.ExhibitByID(p.Args["id"].(int))
 				},
 			},
 			"room": &graphql.Field{
 				Type: roomType,
 				Args: graphql.FieldConfigArgument{
-					"slug": &graphql.ArgumentConfig{
-						Description: "Returns a room based on slug",
-						Type:        graphql.NewNonNull(graphql.String),
+					"id": &graphql.ArgumentConfig{
+						Description: "Retreive a room from database",
+						Type:        graphql.NewNonNull(graphql.Int),
 					},
 				},
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					if room, ok := RoomData[p.Args["slug"].(string)]; ok {
-						return room, nil
-					}
-					return Room{}, nil
+					db, _ := p.Context.Value("db").(MuseumDB)
+					return db.RoomByID(p.Args["id"].(int))
+				},
+			},
+			"exhibits": &graphql.Field{
+				Type:        graphql.NewList(exhibitType),
+				Description: "Query all exhibits in database",
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					db, _ := p.Context.Value("db").(MuseumDB)
+					return db.GetAllExhibits()
+				},
+			},
+			"rooms": &graphql.Field{
+				Type:        graphql.NewList(roomType),
+				Description: "Query all rooms in database",
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					db, _ := p.Context.Value("db").(MuseumDB)
+					return db.GetAllRooms()
 				},
 			},
 		},
@@ -181,19 +145,13 @@ var (
 )
 
 func init_schema() (graphql.Schema, error) {
-	data := Data["chairs"]
-	data.Room = RoomData["hall"]
-	Data["chairs"] = data
-	data = Data["clock"]
-	data.Room = RoomData["kitchen"]
-	Data["clock"] = data
-
 	exhibitType.AddFieldConfig(
 		"room", &graphql.Field{
 			Type: roomType,
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				db, _ := p.Context.Value("db").(MuseumDB)
 				if exhibit, ok := p.Source.(Exhibit); ok {
-					return exhibit.Room, nil
+					return db.RoomByID(exhibit.Room)
 				}
 				return Room{}, nil
 			},

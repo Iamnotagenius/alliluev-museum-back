@@ -36,7 +36,8 @@ var (
 				},
 			},
 			"description": &graphql.Field{
-				Type: graphql.NewList(graphql.NewNonNull(graphql.String)),
+				Type:        graphql.NewList(graphql.NewNonNull(graphql.String)),
+				Description: "Long description separated to paragraphs",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					if exhibit, ok := p.Source.(Exhibit); ok {
 						return strings.FieldsFunc(
@@ -49,7 +50,8 @@ var (
 				},
 			},
 			"pictures": &graphql.Field{
-				Type: graphql.NewList(graphql.String),
+				Type:        graphql.NewList(graphql.String),
+				Description: "Paths to photos of this exhibit",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					if exhibit, ok := p.Source.(Exhibit); ok {
 						return exhibit.Pictures, nil
@@ -73,7 +75,8 @@ var (
 				},
 			},
 			"pictures": &graphql.Field{
-				Type: graphql.NewList(graphql.String),
+				Type:        graphql.NewList(graphql.String),
+				Description: "Paths to photos of this room",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					if room, ok := p.Source.(Room); ok {
 						return room.Pictures, nil
@@ -82,7 +85,8 @@ var (
 				},
 			},
 			"exhibits": &graphql.Field{
-				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(exhibitType))),
+				Type:        graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(exhibitType))),
+				Description: "Exhibits located in this room",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					db, _ := p.Context.Value("db").(MuseumDB)
 					if room, ok := p.Source.(Room); ok {
@@ -126,7 +130,7 @@ var (
 			},
 			"exhibits": &graphql.Field{
 				Type:        graphql.NewList(exhibitType),
-				Description: "Query all exhibits in database",
+				Description: "Query all exhibits from database",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					db, _ := p.Context.Value("db").(MuseumDB)
 					return db.GetAllExhibits()
@@ -134,7 +138,7 @@ var (
 			},
 			"rooms": &graphql.Field{
 				Type:        graphql.NewList(roomType),
-				Description: "Query all rooms in database",
+				Description: "Query all rooms from database",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					db, _ := p.Context.Value("db").(MuseumDB)
 					return db.GetAllRooms()
@@ -147,7 +151,8 @@ var (
 func init_schema() (graphql.Schema, error) {
 	exhibitType.AddFieldConfig(
 		"room", &graphql.Field{
-			Type: roomType,
+			Type:        roomType,
+			Description: "Room in which this exhibit is located",
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 				db, _ := p.Context.Value("db").(MuseumDB)
 				if exhibit, ok := p.Source.(Exhibit); ok {

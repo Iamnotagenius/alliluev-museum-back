@@ -32,9 +32,7 @@ func main() {
 	db := NewDB(*address)
 
 	h := handler.New(&handler.Config{
-		Schema:   &schema,
-		Pretty:   true,
-		GraphiQL: true,
+		Schema: &schema,
 	})
 
 	http.Handle("/graphql", httpDBMiddleware(h, db))

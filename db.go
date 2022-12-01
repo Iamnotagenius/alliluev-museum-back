@@ -10,14 +10,19 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+var (
+	UserEnv   = "MYSQL_USER"
+	PasswdEnv = "MYSQL_PASSWORD"
+)
+
 type MuseumDB struct {
 	db *sql.DB
 }
 
 func NewDB(address string) MuseumDB {
 	cfg := mysql.Config{
-		User:   "root",
-		Passwd: os.Getenv("MYSQL_PASSWORD"),
+		User:   os.Getenv(UserEnv),
+		Passwd: os.Getenv(PasswdEnv),
 		Addr:   address,
 		Net:    "tcp",
 		DBName: "museum",
